@@ -110,6 +110,8 @@ TYPE_XMLSTRING = b'\x0B'
 #: <http://osflash.org/documentation/amf3/parsing_byte_arrays>}
 TYPE_BYTEARRAY = b'\x0C'
 
+TYPE_DICTIONARY = b"\x11"
+
 #: Reference bit.
 REFERENCE_BIT = 0x01
 
@@ -807,6 +809,8 @@ class Decoder(codec.Decoder):
             return self.readXMLString
         elif data == TYPE_BYTEARRAY:
             return self.readByteArray
+        elif data == TYPE_DICTIONARY:
+            return self.readDictionary
 
     def readProxy(self, obj):
         """
@@ -1141,6 +1145,28 @@ class Decoder(codec.Decoder):
         self.context.addObject(obj)
 
         return obj
+
+    def readDictionary(self):
+        """
+        Reads a dictionary from the stream.
+        """
+        ref = self.readInteger()
+
+        if ref & REFERENCE_BIT == 0:
+            return self.context.getObject(ref >> 1)
+
+        self.stream.read(1)
+        length = ref >> 1
+        map_obj = {}
+
+        self.context.addObject(map_obj)
+
+        for _ in range(length):
+            key = self.readElement()
+            value = self.readElement()
+            map_obj[key] = value
+
+        return map_obj
 
 
 class Encoder(codec.Encoder):
